@@ -12,7 +12,7 @@ class ViewModel: ObservableObject {
     @Published var collections: [ProductCollection] = []
 
     func fetch() {
-        guard let url = URL(string: "https://api.phatthanhcafe.com/product/collection?ids=201") else { return }
+        guard let url = URL(string: "https://api.phatthanhcafe.com/product/collection?ids=101") else { return }
 
         URLSession.shared.dataTask(with: url) { data, _, error in
             if let error = error {

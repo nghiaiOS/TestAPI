@@ -118,37 +118,40 @@ struct TestView: View {
 
                 // Hiển thị sản phẩm và giá
                 if let collection = viewModel.collections.first,
-                   let product = collection.products.first { //Lấy sản phẩm đầu tiên trong collection đầu tiên.
-                    
+                //  let product = collection.products.first { //Lấy sản phẩm đầu tiên trong collection đầu tiên.
+                    let product = collection.products[safe: 2] { //Lấy sản phẩm thứ 3 trong collection đầu tiên để test.
                     VStack(alignment: .leading, spacing: 20) {
                         Text("\(product.name) (ID: \(product.id))")
                             .font(.headline)
+                        
                         /*
                          Gọi hàm findMatchingVariation(for:) để tìm một biến thể (variation) phù hợp với các option người dùng đã chọn.
                          Nếu tìm thấy (không nil), gán vào biến matched.
                          */
+                        
                         if let matched = findMatchingVariation(for: product) {
                             Text("\(matched.price.formatted()) đ")
                                 .font(.title3)
                                 .bold()
                                 .foregroundStyle(Color("Brown2"))
+                            Text("\(matched.id)")
                         } else {
                             Text("Chọn đầy đủ để hiển thị giá")
                                 .font(.subheadline)
                                 .foregroundStyle(.gray)
                         }
-
-                // Hiển thị features và options
                         
+                        // Hiển thị features và options
                         ForEach(product.features ?? []) { feature in
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(feature.name)
                                     .font(.headline)
                                     .bold()
-
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 12) {
-                                        ForEach(feature.options ?? []) { option in //option có dạng ProductOption
+                                        
+                                        /*ForEach(feature.options ?? []) { option in //option có dạng ProductOption
+                                            
                                             Button(action: {
                                                 var opt = option //Tạo một bản sao của option
                                                 opt.feature = feature //Gắn lại feature vào option đó → để sau này có thể hiển thị lại "Đá: Đá vừa".
@@ -157,6 +160,50 @@ struct TestView: View {
                                                  selectedOptions = [
                                                      1: ProductOption(id: 28, name: "Đá vừa", feature: "Đá")
                                                  ]*/
+                                            }) {
+                                                HStack(alignment: .top, spacing: 5) {
+                                                    ZStack {
+                                                        Circle()
+                                                            .frame(width: 20, height: 20)
+                                                            .foregroundStyle(.white)
+                                                            .overlay(
+                                                                Circle()
+                                                                    .stroke(Color("Brown2"), lineWidth: 1)
+                                                            )
+                                                        if selectedOptions[feature.id]?.id == option.id {
+                                                            Circle()
+                                                                .frame(width: 10, height: 10)
+                                                                .foregroundStyle(Color("Brown2"))
+                                                        }
+                                                    }
+
+                                                    VStack(alignment: .leading, spacing: 2) {
+                                                        Text(option.name).bold()
+                                                        Text("\(option.id)")
+                                                        if !option.description.isEmpty {
+                                                            Text(option.description).font(.caption)
+                                                        }
+                                                    }
+                                                    .foregroundStyle(.black)
+                                                }
+                                                .padding(10)
+                                                .background(Color.white)
+                                                .cornerRadius(8)
+                                                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+                                            }
+                                        }*/ //Chưa lọc option
+                                        
+                                        //Lọc Option dựa theo variation
+                                        //Lấy tất cả option.id có trong các variation
+                                        let usedOptionIDs = Set(product.variations?.flatMap { $0.options.map { $0.id } } ?? [])
+                                        //Lọc những option nào có trong usedOptionIDs
+                                        let validOptions = feature.options?.filter { usedOptionIDs.contains($0.id) } ?? []
+                                        //Dùng trong ForEach
+                                        ForEach(validOptions) { option in
+                                            Button(action: {
+                                                var opt = option
+                                                opt.feature = feature
+                                                selectedOptions[feature.id] = opt
                                             }) {
                                                 HStack(alignment: .top, spacing: 5) {
                                                     ZStack {
@@ -215,4 +262,11 @@ struct TestView: View {
 
 #Preview {
     TestView()
+}
+
+//Extension Test cho Collection để chọn hiển thị sản phẩm bất kỳ ngăn crash.
+extension Collection {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
 }
