@@ -7,12 +7,14 @@
 
 import Foundation
 
-import Foundation
 class ViewModel: ObservableObject {
+    //Chọn Collection từ View
+    @Published var ids: String = "206"
+    
     @Published var collections: [ProductCollection] = []
 
     func fetch() {
-        guard let url = URL(string: "https://api.phatthanhcafe.com/product/collection?ids=101") else { return }
+        guard let url = URL(string: "https://api.phatthanhcafe.com/product/collection?ids=\(ids)") else { return }
 
         URLSession.shared.dataTask(with: url) { data, _, error in
             if let error = error {

@@ -81,168 +81,227 @@ struct TestView: View {
         }
         selectedOptions = defaults //gán dictionary defaults này cho selectedOptions để load các giá trị mặc định ban đầu
     }
-
+    // Sử dụng từ điển để phân biệt các Modifier:  Topping và Extra Flavour
+    @State private var selectedModifiers: [Int: [String]] = [:]
+    // Số lượng và max Số lượng
+    @State private var selectedQuantity: Int = 1
+    let maxQuantity = 10
+    //ID Collection & Sản phẩm
+    @State var ids : String = ""
+    @State var productIds : Int = 0
+    @FocusState private var isFocused : Bool
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
-                // Hiển thị các lựa chọn đã chọn
-                if !selectedOptions.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Bạn đã chọn:").bold()
-                        //@State private var selectedOptions: [Int: ProductOption]
-                        //Đây là một dictionary (từ điển) lưu trữ các lựa chọn người dùng đã chọn, dạng:
-                        //[featureID: ProductOption]
-                        /*[
-                          1: Option(id: 28, name: "Đá vừa", feature?.name = "Đá"),
-                          2: Option(id: 30, name: "Ngọt ít", feature?.name = "Đường"),
-                          3: Option(id: 34, name: "Size lớn", feature?.name = "Size")
-                        ]*/
-                           // .keys là danh sách feature.id trong selectedOptions.
-                           // Dùng Array(...) để chuyển sang mảng vì ForEach cần mảng để lặp.
-                           // id: \.self là mỗi phần tử trong ForEach là bằng chính giá trị key (Int).
-                        /*selectedOptions:
-                         Ban đầu: [
-                        1: ProductOption(id: 28, name: "Đá vừa", feature: Đá),
-                        2: ProductOption(id: 30, name: "Ngọt ít", feature: Ngọt),
-                        3: ProductOption(id: 34, name: "Size lớn", feature: Size)
-                      ]
-                         .keys: [1, 2, 3] chưa dùng đc với ForEach
-                         Array: [1, 2, 3] giống nhau về nội dung, nhưng kiểu là [Int] (mảng) dùng dc cho ForEach*/
-                        ForEach(Array(selectedOptions.keys), id: \.self) { key in
-                            if let option = selectedOptions[key] {
-                                Text("\(option.feature?.name ?? ""): \(option.name)")
+                //Chọn Collection và Sản phẩm trong collllection đó
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack{
+                        TextField("Nhập collectionID: \(ids)", text: $ids)
+                            .focused($isFocused)
+                            .frame(width: 200, height: 30)
+                            .padding(6)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(6)
+                        Button(action:{
+                            if !ids.isEmpty{
+                                viewModel.ids = ids
+                                viewModel.fetch()
+                                selectedQuantity = 1
+                            }
+                            isFocused = false
+                            productIds = 0
+                        })
+                        {
+                            ZStack{
+                                RoundedRectangle(cornerRadius: 30)
+                                    .frame(width: 150, height: 30)
+                                    .foregroundStyle(Color("Brown2"))
+                                Text("Tìm Collection")
+                                    .foregroundStyle(.white)
                             }
                         }
-                    }
-                }
-
-                // Hiển thị sản phẩm và giá
-                if let collection = viewModel.collections.first,
-                //  let product = collection.products.first { //Lấy sản phẩm đầu tiên trong collection đầu tiên.
-                    let product = collection.products[safe: 2] { //Lấy sản phẩm thứ 3 trong collection đầu tiên để test.
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text("\(product.name) (ID: \(product.id))")
-                            .font(.headline)
-                        
-                        /*
-                         Gọi hàm findMatchingVariation(for:) để tìm một biến thể (variation) phù hợp với các option người dùng đã chọn.
-                         Nếu tìm thấy (không nil), gán vào biến matched.
-                         */
-                        
-                        if let matched = findMatchingVariation(for: product) {
-                            Text("\(matched.price.formatted()) đ")
-                                .font(.title3)
-                                .bold()
-                                .foregroundStyle(Color("Brown2"))
-                            Text("\(matched.id)")
-                        } else {
-                            Text("Chọn đầy đủ để hiển thị giá")
-                                .font(.subheadline)
-                                .foregroundStyle(.gray)
+                        .onAppear() {
+                            ids = viewModel.ids
                         }
-                        
-                        // Hiển thị features và options
-                        ForEach(product.features ?? []) { feature in
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(feature.name)
-                                    .font(.headline)
-                                    .bold()
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        
-                                        /*ForEach(feature.options ?? []) { option in //option có dạng ProductOption
-                                            
-                                            Button(action: {
-                                                var opt = option //Tạo một bản sao của option
-                                                opt.feature = feature //Gắn lại feature vào option đó → để sau này có thể hiển thị lại "Đá: Đá vừa".
-                                                selectedOptions[feature.id] = opt //Lưu option vừa chọn vào selectedOptions với feature.id làm key.
-                                                /*Nếu feature.id = 1 là "Đá", và người dùng chọn "Đá vừa", thì:
-                                                 selectedOptions = [
-                                                     1: ProductOption(id: 28, name: "Đá vừa", feature: "Đá")
-                                                 ]*/
-                                            }) {
-                                                HStack(alignment: .top, spacing: 5) {
-                                                    ZStack {
-                                                        Circle()
-                                                            .frame(width: 20, height: 20)
-                                                            .foregroundStyle(.white)
-                                                            .overlay(
-                                                                Circle()
-                                                                    .stroke(Color("Brown2"), lineWidth: 1)
-                                                            )
-                                                        if selectedOptions[feature.id]?.id == option.id {
-                                                            Circle()
-                                                                .frame(width: 10, height: 10)
-                                                                .foregroundStyle(Color("Brown2"))
-                                                        }
-                                                    }
-
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        Text(option.name).bold()
-                                                        Text("\(option.id)")
-                                                        if !option.description.isEmpty {
-                                                            Text(option.description).font(.caption)
-                                                        }
-                                                    }
-                                                    .foregroundStyle(.black)
-                                                }
-                                                .padding(10)
-                                                .background(Color.white)
-                                                .cornerRadius(8)
-                                                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
-                                            }
-                                        }*/ //Chưa lọc option
-                                        
-                                        //Lọc Option dựa theo variation
-                                        //Lấy tất cả option.id có trong các variation
-                                        let usedOptionIDs = Set(product.variations?.flatMap { $0.options.map { $0.id } } ?? [])
-                                        //Lọc những option nào có trong usedOptionIDs
-                                        let validOptions = feature.options?.filter { usedOptionIDs.contains($0.id) } ?? []
-                                        //Dùng trong ForEach
-                                        ForEach(validOptions) { option in
-                                            Button(action: {
-                                                var opt = option
-                                                opt.feature = feature
-                                                selectedOptions[feature.id] = opt
-                                            }) {
-                                                HStack(alignment: .top, spacing: 5) {
-                                                    ZStack {
-                                                        Circle()
-                                                            .frame(width: 20, height: 20)
-                                                            .foregroundStyle(.white)
-                                                            .overlay(
-                                                                Circle()
-                                                                    .stroke(Color("Brown2"), lineWidth: 1)
-                                                            )
-                                                        if selectedOptions[feature.id]?.id == option.id {
-                                                            Circle()
-                                                                .frame(width: 10, height: 10)
-                                                                .foregroundStyle(Color("Brown2"))
-                                                        }
-                                                    }
-
-                                                    VStack(alignment: .leading, spacing: 2) {
-                                                        Text(option.name).bold()
-                                                        Text("\(option.id)")
-                                                        if !option.description.isEmpty {
-                                                            Text(option.description).font(.caption)
-                                                        }
-                                                    }
-                                                    .foregroundStyle(.black)
-                                                }
-                                                .padding(10)
-                                                .background(Color.white)
-                                                .cornerRadius(8)
-                                                .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
-                                            }
-                                        }
-                                    }
-                                    .padding(.horizontal, 10)
+                    }
+                    Divider()
+                }
+                // Chọn sản phẩm có trong Collection.
+                if let collection = viewModel.collections.first {
+                    VStack {
+                        HStack {
+                            Text("Chọn sản phẩm: ").bold().font(.headline)
+                            Picker(selection: $productIds, label:
+                                Text("\(productIds)")
+                                    .foregroundColor(.black)
+                            ) {
+                                ForEach(collection.products.indices, id: \.self) { productIndex in
+                                    Text(collection.products[productIndex].name)
+                                        .tag(productIndex)
                                 }
                             }
+                            .pickerStyle(.menu)
+                            .font(.subheadline)
+                            .frame(width: 200, height: 30)
+                            .background(Color.white)
+                            .tint(Color.black)
+                            .onChange(of: productIds) { _ in
+                                let selectedProduct = collection.products[productIds]
+                                setDefaultOptions(from: selectedProduct)
+                                selectedModifiers = [:]
+                                selectedQuantity = 1
+                            }
+
                         }
+                        Divider()
                     }
-                } else {
+                    //Hiển thị sản phẩm và giá
+                    //  let product = collection.products.first { //Lấy sản phẩm đầu tiên trong collection đầu tiên.
+                    if let product = collection.products[safe: productIds] { //Lấy sản phẩm bất kỳ trong collection đầu tiên để test.
+                        VStack(alignment: .leading, spacing: 20) {
+                            HStack(alignment: .bottom){
+                                Text("\(product.name)")
+                                    .font(.headline)
+                                Text("(product ID: \(product.id))")
+                                    .font(.subheadline)
+                            }
+                            /*
+                             Gọi hàm findMatchingVariation(for:) để tìm một biến thể (variation) phù hợp với các option người dùng đã chọn.
+                             Nếu tìm thấy (không nil), gán vào biến matched.
+                             */
+                            if let matched = findMatchingVariation(for: product) {
+                                HStack{
+                                    Text("\(matched.price.formatted())đ")
+                                        .font(.title3)
+                                        .bold()
+                                        .foregroundStyle(Color("Brown2"))
+                                    Text("(variation ID: \(matched.id))")
+                                        .font(.subheadline)
+                                }
+                            } else {
+                                Text("Chọn đầy đủ để hiển thị giá")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.gray)
+                            }
+                            // Hiển thị các lựa chọn đã chọn
+                            if !selectedOptions.isEmpty {
+                                VStack(alignment: .leading) {
+                                    Text("Bạn đã chọn:").bold()
+                                    //@State private var selectedOptions: [Int: ProductOption]
+                                    //Đây là một dictionary (từ điển) lưu trữ các lựa chọn người dùng đã chọn, dạng:
+                                    //[featureID: ProductOption]
+                                    /*[
+                                     1: Option(id: 28, name: "Đá vừa", feature?.name = "Đá"),
+                                     2: Option(id: 30, name: "Ngọt ít", feature?.name = "Đường"),
+                                     3: Option(id: 34, name: "Size lớn", feature?.name = "Size")
+                                     ]*/
+                                    // .keys là danh sách feature.id trong selectedOptions.
+                                    // Dùng Array(...) để chuyển sang mảng vì ForEach cần mảng để lặp.
+                                    // id: \.self là mỗi phần tử trong ForEach là bằng chính giá trị key (Int).
+                                    /*selectedOptions:
+                                     Ban đầu: [
+                                     1: ProductOption(id: 28, name: "Đá vừa", feature: Đá),
+                                     2: ProductOption(id: 30, name: "Ngọt ít", feature: Ngọt),
+                                     3: ProductOption(id: 34, name: "Size lớn", feature: Size)
+                                     ]
+                                     .keys: [1, 2, 3] chưa dùng đc với ForEach
+                                     Array: [1, 2, 3] giống nhau về nội dung, nhưng kiểu là [Int] (mảng) dùng dc cho ForEach*/
+                                    ForEach(Array(selectedOptions.keys), id: \.self) { key in
+                                        if let option = selectedOptions[key] {
+                                            Text("\(option.feature?.name ?? ""): \(option.name)")
+                                        }
+                                    }
+                                }
+                            }
+                            // Hiển thị features và options
+                            ForEach(product.features ?? []) { feature in
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text(feature.name)
+                                        .font(.headline)
+                                        .bold()
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 12) {
+                                            //Lọc option
+                                            //Hiển thị option khả dụng dựa theo id của các option trong từng variation
+                                            //Lấy tất cả option.id có trong các variation
+                                            //flatmap {...} : Gộp tất cả option.id của mọi variation thành 1 mảng duy nhất
+                                            //$0.options.map { $0.id} : Trong từng variation $0, lấy ra mảng options, sau đó map mảng đó thành mảng option.id
+                                            //variation 1 = [27, 3, 33], variation 2 = [27, 30 , 34]
+                                            //flatmap: [27, 30, 33, 27, 30, 34]
+                                            //Set: Bỏ trùng lặp [27, 30, 33, 34]
+                                            let usedOptionIDs = Set(product.variations?.flatMap { $0.options.map { $0.id } } ?? [])
+                                            //Lọc những option nào có trong usedOptionIDs
+                                            //.filter { usedOptionIDs.contains($0.id) } : Duyệt từng option trong feature.options và chỉ giữa lại nếu option.id nằm trong usedOptionIDs. Nói cách khác, chỉ lấy ra những feature option mà trong đó các id (đá ít id : 27, ngọt vừa, size M,...) của nó trùng với id nào đó có trong options của variation (đá ít id : 27)
+                                            let validOptions = feature.options?.filter { usedOptionIDs.contains($0.id) } ?? []
+                                            //Dùng trong ForEach
+                                            ForEach(validOptions) { option in
+                                                //Gọi Radio Button component cho từng option
+                                                RadioButton(action: {
+                                                    var opt = option
+                                                    opt.feature = feature
+                                                    selectedOptions[feature.id] = opt
+                                                }, isSelected: selectedOptions[feature.id]?.id == option.id, optionID: option.id, optionName: option.name, optionDescription: option.description)
+                                            }
+                                        }
+                                        .padding(.horizontal, 10)
+                                    }
+                                }
+                            }
+                            //Modifiers Grid cho cả Topping và Extra Flavour
+                            let columns = [
+                                GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible())
+                            ]
+                            if let modifiers = product.modifiers {
+                                ForEach(modifiers, id: \.id) { modifier in
+                                    Text(modifier.name)
+                                        .font(.headline)
+                                    Text("Tuỳ chọn \(modifier.name): \(selectedModifiers[modifier.id]?.joined(separator: ", ") ?? "")")
+                                        .frame(height: 50)
+                                        .lineLimit(2)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    LazyVGrid(columns: columns, spacing: 10) {
+                                        ForEach(modifier.options ?? [], id: \.id) { option in
+                                            //Gọi Check Box Component cho từng modifier Topping hoặc Extra Flavour
+                                            CheckBox(action:{
+                                                //Lấy id của modifier làm key cho từ điển, ví dụ 1, 2.
+                                                let key = modifier.id
+                                                //Lấy ra mảng các option đã chọn cho modifier này từ dictionary selectedModifiers. Nếu chưa có, khởi tạo là [].
+                                                /*
+                                                 Ex: selectedModifiers = [
+                                                 1 : ["Trân châu trắng", "Thạch dâu"],
+                                                 2 : ["Syrup Caramel"]
+                                                 ]
+                                                 -> arr = selectedModifiers[1] = ["Trân châu trắng", "Thạch dâu"]
+                                                 */
+                                                var arr = selectedModifiers[key] ?? []
+                                                //Nếu đã chọn option rồi thì xoá khỏi mảng và ngược lại
+                                                if arr.contains(option.name) {
+                                                    arr.removeAll { $0 == option.name }
+                                                } else {
+                                                    arr.append(option.name)
+                                                }
+                                                //Cập nhật lại dictionary selectedModifiers với mảng mới.
+                                                selectedModifiers[key] = arr
+                                            }, isSelected: (selectedModifiers[modifier.id] ?? []).contains(option.name),
+                                                     optionName: option.name, optionDescription: option.description, optionPrice: option.price, optionID: option.id)
+                                        }
+                                    }
+                                }
+                                
+                            }
+                            //Quantity & Total Price
+                            VStack(alignment: .leading, spacing: 10){
+                                QuantityStepperPicker(quantity: $selectedQuantity, minQuantity: 1, maxQuantity: 10)
+                                Spacer()
+                                Text("Thành tiền: \(totalPrice(product: product))đ")
+                                    .font(.headline)
+                                    .foregroundStyle(Color("Brown2"))
+                            }
+                        }
+                    } else{}
+                }
+                else {
                     Text("Đang tải dữ liệu...")
                 }
             }
@@ -257,6 +316,32 @@ struct TestView: View {
             }
         }
     }
+    func totalPrice(product: Product) -> Int {
+        
+        var total = 0
+        
+        // Tìm Price thông qua variation
+        if let matched = findMatchingVariation(for: product) {
+            total = matched.price
+        }
+        
+        // Nếu chọn thêm modifier
+        for modifier in product.modifiers ?? [] {
+            let selectedNames = selectedModifiers[modifier.id] ?? []
+            
+            for option in modifier.options {
+                if selectedNames.contains(option.name) {
+                    total += option.price
+                }
+            }
+        }
+        
+        // Chọn số lượng
+        total = total*selectedQuantity
+        
+        // Total Price
+        return total
+    }
 }
 
 
@@ -264,9 +349,156 @@ struct TestView: View {
     TestView()
 }
 
-//Extension Test cho Collection để chọn hiển thị sản phẩm bất kỳ ngăn crash.
+//Extension Test cho Collection để chọn hiển thị sản phẩm bất kỳ để ngăn crash.
 extension Collection {
     subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
+    }
+}
+
+//Radial Button Component
+struct RadioButton: View {
+    //Dùng trong ForEach nên không cần giá trị mặc định ban đầu
+    let action: () -> Void
+    let isSelected : Bool
+    let optionID : Int
+    let optionName : String
+    let optionDescription : String
+    var body: some View {
+        HStack(alignment: .top, spacing: 5) {
+            Button(action:{
+                action()
+            })
+            {
+                ZStack {
+                    Circle()
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(.white)
+                        .overlay(
+                            Circle()
+                                .stroke(Color("Brown2"), lineWidth: 1)
+                        )
+                    if isSelected {
+                        Circle()
+                            .frame(width: 10, height: 10)
+                            .foregroundStyle(Color("Brown2"))
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(optionName)
+                    .frame(alignment: .leading)
+                    .multilineTextAlignment(.leading)
+                    .bold()
+                if !optionDescription.isEmpty {
+                    Text(optionDescription)
+                }
+                Text("ID: \(optionID)")
+                    .font(.caption)
+            }
+            //.frame(width: 90)
+            .foregroundStyle(.black)
+        }
+        .padding(10)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+}
+//Check Box Component
+struct CheckBox: View {
+    let action : () -> Void
+    let isSelected : Bool
+    let optionName : String
+    let optionDescription : String
+    let optionPrice : Int
+    let optionID : Int
+    var body: some View {
+        HStack(alignment: .top, spacing: 5) {
+            Button(action:{
+                action()
+            })
+            {
+                ZStack {
+                    Image(systemName: "square")
+                        .font(.system(size: 22))
+                        .foregroundStyle(Color("Brown2"))
+                    if isSelected {
+                        Image(systemName: "checkmark.square.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(Color("Brown2"))
+                    }
+                }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(optionName)
+                    .frame(width: 130, alignment: .leading)
+                    .multilineTextAlignment(.leading)
+                    .bold()
+                if !optionDescription.isEmpty {
+                    Text(optionDescription).font(.caption)
+                }
+                Text("+ \(optionPrice)đ")
+                Text("ID: \(optionID)").font(.caption)
+            }
+            .frame(width: 130)
+            .foregroundStyle(.black)
+        }
+        .padding(10)
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+        .shadow(color: .gray.opacity(0.1), radius: 2, x: 0, y: 1)
+    }
+}
+
+struct QuantityStepperPicker: View {
+    @Binding var quantity: Int
+    let minQuantity: Int
+    let maxQuantity: Int
+
+    var body: some View {
+        HStack(spacing: 20) {
+            Text("Số lượng")
+                .font(.headline)
+                .foregroundStyle(Color("Brown2"))
+            HStack(spacing: 0){
+                
+                // Button -
+                Button(action: {
+                    if quantity > minQuantity {
+                        quantity -= 1
+                    }
+                }) {
+                    Image(systemName: "minus.square.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(.white, Color("Brown2"))
+                }
+                
+                // Picker
+                Picker(selection: $quantity, label:
+                        Text("\(quantity)")
+                        .frame(width: 20)
+                        .foregroundColor(.black)
+                ) {
+                    ForEach(minQuantity...maxQuantity, id: \.self) { value in
+                        Text("\(value)").tag(value)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 60, height: 30)
+                .background(Color.white)
+                .tint(Color.black)
+                
+                // Button +
+                Button(action: {
+                    if quantity < maxQuantity {
+                        quantity += 1
+                    }
+                }) {
+                    Image(systemName: "plus.square.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(.white, Color("Brown2"))
+                }
+            }.clipShape(RoundedRectangle(cornerRadius: 4))
+        }
     }
 }
