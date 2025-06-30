@@ -82,7 +82,8 @@ struct TestView: View {
         selectedOptions = defaults //gán dictionary defaults này cho selectedOptions để load các giá trị mặc định ban đầu
     }
     // Sử dụng từ điển để phân biệt các Modifier:  Topping và Extra Flavour
-    @State private var selectedModifiers: [Int: [String]] = [:]
+    //@State private var selectedModifiers: [Int: [String]] = [:]
+    @State private var selectedModifiers: [Int: [ProductModifierOption]] = [:]
     // Số lượng và max Số lượng
     @State private var selectedQuantity: Int = 1
     let maxQuantity = 10
@@ -126,8 +127,8 @@ struct TestView: View {
                     }
                     Divider()
                 }
-                // Chọn sản phẩm có trong Collection.
                 if let collection = viewModel.collections.first {
+                    // Chọn sản phẩm có trong Collection.
                     VStack {
                         HStack {
                             Text("Chọn sản phẩm: ").bold().font(.headline)
@@ -145,8 +146,9 @@ struct TestView: View {
                             .frame(width: 200, height: 30)
                             .background(Color.white)
                             .tint(Color.black)
-                            .onChange(of: productIds) { _ in
+                            .onChange(of: productIds) {
                                 let selectedProduct = collection.products[productIds]
+                                // Khi chọn sản phẩm khác thì Reset lại các giá trị mặc định ban đầu.
                                 setDefaultOptions(from: selectedProduct)
                                 selectedModifiers = [:]
                                 selectedQuantity = 1
@@ -155,9 +157,9 @@ struct TestView: View {
                         }
                         Divider()
                     }
-                    //Hiển thị sản phẩm và giá
-                    //  let product = collection.products.first { //Lấy sản phẩm đầu tiên trong collection đầu tiên.
-                    if let product = collection.products[safe: productIds] { //Lấy sản phẩm bất kỳ trong collection đầu tiên để test.
+                    // Hiển thị tên sản phẩm và giá.
+                    // let product = collection.products.first { //Lấy sản phẩm đầu tiên trong collection.
+                    if let product = collection.products[safe: productIds] { //Lấy sản phẩm bất kỳ trong collection để test.
                         VStack(alignment: .leading, spacing: 20) {
                             HStack(alignment: .bottom){
                                 Text("\(product.name)")
@@ -165,10 +167,8 @@ struct TestView: View {
                                 Text("(product ID: \(product.id))")
                                     .font(.subheadline)
                             }
-                            /*
-                             Gọi hàm findMatchingVariation(for:) để tìm một biến thể (variation) phù hợp với các option người dùng đã chọn.
-                             Nếu tìm thấy (không nil), gán vào biến matched.
-                             */
+                            //Gọi hàm findMatchingVariation(for:) để tìm một biến thể (variation) phù hợp với các option người dùng đã chọn.
+                            //Nếu tìm thấy (không nil), gán vào biến matched.
                             if let matched = findMatchingVariation(for: product) {
                                 HStack{
                                     Text("\(matched.price.formatted())đ")
@@ -213,7 +213,7 @@ struct TestView: View {
                                     }
                                 }
                             }
-                            // Hiển thị features và options
+                            // Hiển thị features/options của sản phẩm đã chọn.
                             ForEach(product.features ?? []) { feature in
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(feature.name)
@@ -256,18 +256,18 @@ struct TestView: View {
                                 ForEach(modifiers, id: \.id) { modifier in
                                     Text(modifier.name)
                                         .font(.headline)
-                                    Text("Tuỳ chọn \(modifier.name): \(selectedModifiers[modifier.id]?.joined(separator: ", ") ?? "")")
+                                    Text("Tuỳ chọn \(modifier.name): \((selectedModifiers[modifier.id] ?? []).map { $0.name }.joined(separator: ", "))")
                                         .frame(height: 50)
                                         .lineLimit(2)
                                         .fixedSize(horizontal: false, vertical: true)
                                     LazyVGrid(columns: columns, spacing: 10) {
-                                        ForEach(modifier.options ?? [], id: \.id) { option in
-                                            //Gọi Check Box Component cho từng modifier Topping hoặc Extra Flavour
+                                        ForEach(modifier.options, id: \.id) { option in
+                                            // Gọi Check Box Component cho từng modifier Topping hoặc Extra Flavour
+                                            // modifier.options = [ProductModifieroption(id: 1, slug: tran-chau-trang, name: "Trân châu trắng", price: 6000, description: ""), ProductModifieroption(id: 2, slug: thach-dau, name: "Thạch dâu", price: 6000, description: "")]
                                             CheckBox(action:{
-                                                //Lấy id của modifier làm key cho từ điển, ví dụ 1, 2.
+                                                // Lấy id của modifier làm key cho từ điển, ví dụ 1, 2.
                                                 let key = modifier.id
-                                                //Lấy ra mảng các option đã chọn cho modifier này từ dictionary selectedModifiers. Nếu chưa có, khởi tạo là [].
-                                                /*
+                                                /* Lấy ra mảng các option đã chọn cho modifier này từ dictionary selectedModifiers. Nếu chưa có, khởi tạo là [].
                                                  Ex: selectedModifiers = [
                                                  1 : ["Trân châu trắng", "Thạch dâu"],
                                                  2 : ["Syrup Caramel"]
@@ -275,15 +275,16 @@ struct TestView: View {
                                                  -> arr = selectedModifiers[1] = ["Trân châu trắng", "Thạch dâu"]
                                                  */
                                                 var arr = selectedModifiers[key] ?? []
-                                                //Nếu đã chọn option rồi thì xoá khỏi mảng và ngược lại
-                                                if arr.contains(option.name) {
-                                                    arr.removeAll { $0 == option.name }
+                                                if let index = arr.firstIndex(where: { $0.id == option.id }) {
+                                                    // Nếu đã tồn tại, remove
+                                                    arr.remove(at: index)
                                                 } else {
-                                                    arr.append(option.name)
+                                                    // Nếu chưa có, append
+                                                    arr.append(option)
                                                 }
                                                 //Cập nhật lại dictionary selectedModifiers với mảng mới.
                                                 selectedModifiers[key] = arr
-                                            }, isSelected: (selectedModifiers[modifier.id] ?? []).contains(option.name),
+                                            }, isSelected: (selectedModifiers[modifier.id] ?? []).contains(where: { $0.id == option.id }),
                                                      optionName: option.name, optionDescription: option.description, optionPrice: option.price, optionID: option.id)
                                         }
                                     }
@@ -309,7 +310,7 @@ struct TestView: View {
             .onAppear {
                 viewModel.fetch()
             }
-            .onChange(of: viewModel.collections.first?.products.first?.id) { _ in
+            .onChange(of: viewModel.collections.first?.products.first?.id) {
                 if let product = viewModel.collections.first?.products.first {
                     setDefaultOptions(from: product)
                 }
@@ -327,12 +328,10 @@ struct TestView: View {
         
         // Nếu chọn thêm modifier
         for modifier in product.modifiers ?? [] {
-            let selectedNames = selectedModifiers[modifier.id] ?? []
+            let selectedOptions = selectedModifiers[modifier.id] ?? []
             
-            for option in modifier.options {
-                if selectedNames.contains(option.name) {
-                    total += option.price
-                }
+            for option in selectedOptions {
+                total += option.price
             }
         }
         
