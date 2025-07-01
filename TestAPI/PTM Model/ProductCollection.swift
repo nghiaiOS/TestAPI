@@ -14,7 +14,7 @@ struct ProductCollection: Codable, Identifiable {
     var products: [Product]
 }
 
-/*func loadCollectionsByIDs(_ ids: [Int]) async throws -> [ProductCollection] {
+func loadCollectionsByIDs(_ ids: [Int]) async throws -> [ProductCollection] {
     let query = ids.map{ String($0) }.joined(separator: ",")
     return try await API.shared.getPublic(path: "/product/collection?ids=\(query)")
-}*/
+}
