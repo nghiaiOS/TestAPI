@@ -19,7 +19,7 @@ struct TestView: View {
     | Feature (Group) ID | Feature Name |
     | ------------------ | ------------ |
     | `1`                | Đá           |
-    | `2`                | Đường        |
+    | `2`                | Độ ngọt        |
     | `3`                | Size         |
     Người dùng chọn
     | Option ID | Option Name | Feature ID (Nhóm) |
@@ -33,7 +33,16 @@ struct TestView: View {
         1: ProductOption(id: 28, name: "Đá vừa", feature: Feature(id: 1, name: "Đá")),
         2: ProductOption(id: 30, name: "Ngọt ít", feature: Feature(id: 2, name: "Độ ngọt")),
         3: ProductOption(id: 34, name: "Size lớn", feature: Feature(id: 3, name: "Dung tích"))
-     ]*/
+     ]
+     struct ProductOption: Codable, Identifiable {
+         var id: Int
+         var slug: String
+         var name: String
+         var description: String
+         var feature: ProductFeature?
+         var isDefault: Bool
+     }
+     */
     //Dictionary: key là feature.id, value là ProductOption người dùng đã chọn.
     @State private var selectedOptions: [Int: ProductOption] = [:]
     //Tìm variation (có chứa giá tiền) giống với variation mà trong đó chứa ProductOption /Đá, Độ ngọt, Dung tích/ người dùng đã chọn thông qua 3 option.
@@ -41,6 +50,7 @@ struct TestView: View {
     //Mỗi variation có chứa 3 tuỳ chọn options – tức là những ProductOption cấu thành nên nó (như Đá ít, Ngọt nhiều, Size lớn...).
     //Khi người dùng chọn các option trong mục feature, "dữ liệu ProductOption" đó sẽ được lưu trong selectedOptions: [featureID: ProductOption] tương ứng với feature cha.
     //Hàm bên dưới kiểm tra xem có variation nào khớp với 3 options đó không bằng phương pháp "Set(...map{$0.id}): tập hợp các id".
+    //Tìm variation phù hợp cho product này. (hoặc thay for bằng _)
     func findMatchingVariation(for product: Product) -> ProductVariation? {
         //selectedOptions.values là danh sách các ProductOption người dùng đã chọn
         //.map { $0.id } lấy id của từng ProductOption
@@ -59,24 +69,23 @@ struct TestView: View {
             Set(variation.options.map { $0.id }) == selectedIDs //Set là tập hợp ko thứ tự dù [27, 30, 33] và [30, 27, 33] có phần tử khác vị trí thì cũng vẫn bằng nhau nên Set([27, 30, 33]) = Set([30, 27, 33])
         })
     }
-    
     /*[
        1: ProductOption(id: 28, name: "Đá vừa", feature: Feature(id: 1, name: "Đá")),
        2: ProductOption(id: 30, name: "Ngọt ít", feature: Feature(id: 2, name: "Độ ngọt")),
        3: ProductOption(id: 34, name: "Size lớn", feature: Feature(id: 3, name: "Dung tích"))
     ]*/
-    
     /*Hàm setDefaultOptions(from product: Product) có nhiệm vụ thiết lập các lựa chọn mặc định ban đầu (default options) cho từng nhóm lựa chọn (ProductFeature) trong một Product.
-    - Product có nhiều features (VD: "Đá", "Ngọt", "Size")
-    - Mỗi feature có nhiều options (VD: "Ít đá", "Đá vừa", "Đá nhiều")
-    - Trong mỗi options, có thể có 1 cái được đánh dấu là mặc định: isDefault == true*/
+     Product có nhiều features (VD: "Đá", "Ngọt", "Size")
+     Mỗi feature có nhiều options (VD: "Ít đá", "Đá vừa", "Đá nhiều")
+     Trong mỗi options, có thể có 1 cái được đánh dấu là mặc định: isDefault == true*/
+    // Thiết lập giá trị mặc định (thay from thành _ cũng được)
     func setDefaultOptions(from product: Product) { //Hàm nhận vào một Product, và sẽ cài các lựa chọn mặc định dựa vào dữ liệu của sản phẩm đó.
-        var defaults: [Int: ProductOption] = [:]
+        var defaults: [Int: ProductOption] = [:] // Khởi tạo từ điển cho giá trị mặc định
         for feature in product.features ?? [] { //Lặp qua tất cả features của sản phẩm. Nếu features bị nil thì dùng mảng rỗng.
             if let defaultOption = feature.options?.first(where: { $0.isDefault }) { //Với mỗi feature, tìm option đầu tiên có isDefault == true
                 var option = defaultOption //tạo một biến option (kiểu ProductOption) từ option mặc định tìm được.
                 option.feature = feature //Gắn thông tin cha (feature) vào từng option
-                defaults[feature.id] = option //Lưu lựa chọn mặc định vào dictionary
+                defaults[feature.id] = option //Lưu lựa chọn mặc định vào dictionary với key là id của feature tương ứng.
             }
         }
         selectedOptions = defaults //gán dictionary defaults này cho selectedOptions để load các giá trị mặc định ban đầu
@@ -94,7 +103,7 @@ struct TestView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 30) {
-                //Chọn Collection và Sản phẩm trong collllection đó
+                //Tìm Collection và Sản phẩm trong collllection đó
                 VStack(alignment: .leading, spacing: 6) {
                     HStack{
                         TextField("Nhập collectionID: \(ids)", text: $ids)
@@ -136,6 +145,7 @@ struct TestView: View {
                                 Text("\(productIds)")
                                     .foregroundColor(.black)
                             ) {
+                                //Thêm .indices để trả về 0..<products.count để tuân thủ Identifiable nếu collection.products không tuân thủ Identifiable thì ForEach không thể thực thi.
                                 ForEach(collection.products.indices, id: \.self) { productIndex in
                                     Text(collection.products[productIndex].name)
                                         .tag(productIndex)
@@ -158,17 +168,36 @@ struct TestView: View {
                         Divider()
                     }
                     // Hiển thị tên sản phẩm và giá.
-                    // let product = collection.products.first { //Lấy sản phẩm đầu tiên trong collection.
-                    if let product = collection.products[safe: productIds] { //Lấy sản phẩm bất kỳ trong collection để test.
+                    // let product = collection.products.first { // Lấy sản phẩm đầu tiên trong collection.
+                    if let product = collection.products[safe: productIds] { // Lấy sản phẩm bất kỳ trong collection để test, xem thêm ngăn crash ở extension Collection.
                         VStack(alignment: .leading, spacing: 20) {
+                            AsyncImage(url: URL(string: "\(product.images[0])")) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(width: 60, height: 60)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .interpolation(.high) // Giảm răng cưa khi nén ảnh
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 50, height: 50)
+                                        .cornerRadius(2)
+                                        .clipped()
+                                case .failure:
+                                    Image(systemName: "photo")
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
                             HStack(alignment: .bottom){
                                 Text("\(product.name)")
                                     .font(.headline)
                                 Text("(product ID: \(product.id))")
                                     .font(.subheadline)
                             }
-                            //Gọi hàm findMatchingVariation(for:) để tìm một biến thể (variation) phù hợp với các option người dùng đã chọn.
-                            //Nếu tìm thấy (không nil), gán vào biến matched.
+                            // Gọi hàm findMatchingVariation(for:) để tìm một biến thể (variation) phù hợp với các option người dùng đã chọn.
+                            // Nếu tìm thấy (không nil), gán vào biến matched.
                             if let matched = findMatchingVariation(for: product) {
                                 HStack{
                                     Text("\(matched.price.formatted())đ")
@@ -247,7 +276,7 @@ struct TestView: View {
                                     }
                                 }
                             }
-                            //Modifiers Grid cho cả Topping và Extra Flavour
+                            // Modifiers Grid cho cả Topping và Extra Flavour
                             let columns = [
                                 GridItem(.flexible(), spacing: 10),
                                 GridItem(.flexible())
@@ -268,12 +297,7 @@ struct TestView: View {
                                                 // Lấy id của modifier làm key cho từ điển, ví dụ 1, 2.
                                                 let key = modifier.id
                                                 /* Lấy ra mảng các option đã chọn cho modifier này từ dictionary selectedModifiers. Nếu chưa có, khởi tạo là [].
-                                                 Ex: selectedModifiers = [
-                                                 1 : ["Trân châu trắng", "Thạch dâu"],
-                                                 2 : ["Syrup Caramel"]
-                                                 ]
-                                                 -> arr = selectedModifiers[1] = ["Trân châu trắng", "Thạch dâu"]
-                                                 */
+                                                -> arr có kiểu là 1 chuỗi với các phầm tử là ProductModifierOption: [ProductModifierOption]*/
                                                 var arr = selectedModifiers[key] ?? []
                                                 if let index = arr.firstIndex(where: { $0.id == option.id }) {
                                                     // Nếu đã tồn tại, remove
@@ -348,7 +372,8 @@ struct TestView: View {
     TestView()
 }
 
-//Extension Test cho Collection để chọn hiển thị sản phẩm bất kỳ để ngăn crash.
+//Extension có hàm subscript cho mọi Array/ Set/ Dictionary để chọn hiển thị sản phẩm bất kỳ để ngăn crash.
+//Tên hàm là safe, dùng để truy cập phần tử một cách an toàn theo index.
 extension Collection {
     subscript(safe index: Index) -> Element? {
         return indices.contains(index) ? self[index] : nil
@@ -501,3 +526,8 @@ struct QuantityStepperPicker: View {
         }
     }
 }
+/*
+ @State private var selectedOptions: [Int: ProductOption] = [:] // Có các tuỳ chọn của Variation.
+ @State private var selectedModifiers: [Int: [ProductModifierOption]] = [:] // Có các Modifiers.
+ Total Price.
+ */
